@@ -1,0 +1,22 @@
+directories:
+  output: dist-electron
+  buildResources: build
+appId: com.thorbjj.catraca
+productName: Thor BJJ Catraca
+win:
+  target: nsis
+  icon: public/favicon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Thor BJJ Catraca
+  runAfterFinish: true
+files:
+  - filter:
+      - catraca-build/**/*
+      - package.json
+      - public/**/*
+      - config.json
+electronVersion: 44.3.0
