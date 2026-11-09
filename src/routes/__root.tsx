@@ -28,6 +28,31 @@ function RecoveryRedirect() {
   return null;
 }
 
+function RemoveLovableBadge() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const selectors = [
+      "#lovable-badge",
+      "#lovable-badge-close",
+      "lovable-badge",
+      '[id*="lovable-badge"]',
+      '[class*="lovable-badge"]',
+      'a[href*="lovable.dev"]',
+      'a[href*="utm_source=lovable"]',
+    ].join(",");
+
+    const clean = () => {
+      document.querySelectorAll(selectors).forEach((el) => el.remove());
+    };
+
+    clean();
+    const observer = new MutationObserver(() => clean());
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+  return null;
+}
+
 function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -70,8 +95,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "Thor BJJ ERP" },
       { property: "og:description", content: "Sistema de gestão da Thor BJJ — alunos, contratos e financeiro." },
       { name: "twitter:description", content: "Sistema de gestão da Thor BJJ — alunos, contratos e financeiro." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/aba82d17-4dbd-45fd-b94f-c09529406564/id-preview-2a2f4b08--f8e68b72-9f0a-4bbf-a0cc-144de0209386.lovable.app-1778256837091.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/aba82d17-4dbd-45fd-b94f-c09529406564/id-preview-2a2f4b08--f8e68b72-9f0a-4bbf-a0cc-144de0209386.lovable.app-1778256837091.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
@@ -97,6 +120,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <RemoveLovableBadge />
         <RecoveryRedirect />
         <Outlet />
         <Toaster richColors position="top-right" />

@@ -99,3 +99,20 @@
               radial-gradient(circle at 80% 80%, oklch(0.20 0.10 27 / 0.35), transparent 55%),
               var(--color-background);
 }
+
+/* Ocultar badge/logo do Lovable */
+#lovable-badge,
+#lovable-badge-close,
+lovable-badge,
+[id*="lovable-badge"],
+[class*="lovable-badge"],
+a[href*="lovable.dev"],
+a[href*="utm_source=lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
