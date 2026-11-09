@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .output
+.netlify
 .vinxi
 .tanstack/**
 .nitro
@@ -32,8 +33,6 @@ dist-ssr
 *.sw?
 
 # Electron
-dist-electron/Thor BJJ Catraca Setup 1.0.0.exe
-dist-electron/Thor BJJ Catraca Setup 1.0.0.exe.blockmap
-dist-electron/Thor BJJ Catraca.exe
-dist-electron/win-unpacked/Thor BJJ Catraca.exe
-dist-electron/win-unpacked/resources/app.asar
+dist-electron
+catraca-build
+CatracaBJJ.exe
