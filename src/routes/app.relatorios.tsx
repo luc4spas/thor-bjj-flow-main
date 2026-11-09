@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileSpreadsheet, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -93,9 +94,19 @@ function Kpi({ title, value }: { title: string; value: string }) {
   );
 }
 
+function formatarDataSegura(dataIso?: string | null) {
+  if (!dataIso) return "";
+  const d = dataIso.slice(0, 10);
+  const [ano, mes, dia] = d.split("-");
+  if (!ano || !mes || !dia) return dataIso;
+  return `${dia}/${mes}/${ano}`;
+}
+
 function ExportacaoNotasFiscais() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [filtroData, setFiltroData] = useState<"qualquer" | "vencimento" | "pagamento">("qualquer");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "pago" | "pendente">("todos");
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
@@ -106,12 +117,15 @@ function ExportacaoNotasFiscais() {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("transacoes")
         .select(`
           id,
           valor,
+          status,
+          data_vencimento,
           data_pagamento,
+          created_at,
           forma_pagamento,
           descricao,
           categoria,
@@ -133,14 +147,32 @@ function ExportacaoNotasFiscais() {
           )
         `)
         .eq("tipo", "receita")
-        .eq("status", "pago")
-        .gte("data_pagamento", dataInicio)
-        .lte("data_pagamento", dataFim);
+        .order("data_vencimento", { ascending: true });
+
+      if (filtroStatus !== "todos") {
+        query = query.eq("status", filtroStatus);
+      }
+
+      const { data: rows, error } = await query;
 
       if (error) throw error;
 
+      const data = (rows ?? []).filter((t: any) => {
+        const dtVenc = t.data_vencimento ? String(t.data_vencimento).slice(0, 10) : "";
+        const dtPag = t.data_pagamento ? String(t.data_pagamento).slice(0, 10) : "";
+        const dtCriacao = t.created_at ? String(t.created_at).slice(0, 10) : "";
+
+        const noPeriodoVenc = dtVenc >= dataInicio && dtVenc <= dataFim;
+        const noPeriodoPag = Boolean(dtPag) && dtPag >= dataInicio && dtPag <= dataFim;
+        const noPeriodoCriacao = Boolean(dtCriacao) && dtCriacao >= dataInicio && dtCriacao <= dataFim;
+
+        if (filtroData === "vencimento") return noPeriodoVenc;
+        if (filtroData === "pagamento") return noPeriodoPag;
+        return noPeriodoVenc || noPeriodoPag || noPeriodoCriacao;
+      });
+
       if (!data || data.length === 0) {
-        toast.info("Nenhum pagamento encontrado neste período.");
+        toast.info("Nenhum lançamento encontrado neste período para os filtros selecionados.");
         setLoading(false);
         return;
       }
@@ -162,8 +194,10 @@ function ExportacaoNotasFiscais() {
 
         return {
           "ID Transação": t.id,
-          "Data Pagamento": t.data_pagamento ? format(new Date(t.data_pagamento), "dd/MM/yyyy") : "",
-          "Valor Pago": t.valor,
+          "Status": t.status === "pago" ? "Pago" : "Pendente",
+          "Data Vencimento": formatarDataSegura(t.data_vencimento),
+          "Data Pagamento": formatarDataSegura(t.data_pagamento),
+          "Valor": Number(t.valor),
           "Forma Pagamento": t.forma_pagamento || "",
           "Descrição Serviço": descricaoServico,
           "Nome Tomador": tomadorNome,
@@ -186,7 +220,7 @@ function ExportacaoNotasFiscais() {
       
       const fileName = `NFS-e_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`;
       XLSX.writeFile(workbook, fileName);
-      toast.success("Relatório gerado com sucesso!");
+      toast.success(`Relatório gerado com sucesso (${relatorio.length} lançamento${relatorio.length > 1 ? "s" : ""})!`);
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao gerar relatório: " + err.message);
@@ -202,11 +236,11 @@ function ExportacaoNotasFiscais() {
           <FileSpreadsheet className="size-5 text-primary" />
           Exportação para NFS-e
         </CardTitle>
-        <CardDescription>Gere um relatório Excel com os dados dos pagamentos e dos tomadores para a contabilidade emitir as notas fiscais.</CardDescription>
+        <CardDescription>Gere um relatório Excel com os dados dos lançamentos e dos tomadores para a contabilidade emitir as notas fiscais.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dt-inicio">Data Inicial</Label>
               <Input 
@@ -224,6 +258,31 @@ function ExportacaoNotasFiscais() {
                 value={dataFim} 
                 onChange={e => setDataFim(e.target.value)} 
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Considerar data de</Label>
+              <Select value={filtroData} onValueChange={(v) => setFiltroData(v as typeof filtroData)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="qualquer">Vencimento, Pagamento ou Lançamento</SelectItem>
+                  <SelectItem value="vencimento">Data de Vencimento</SelectItem>
+                  <SelectItem value="pagamento">Data de Pagamento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status do Lançamento</Label>
+              <Select value={filtroStatus} onValueChange={(v) => setFiltroStatus(v as typeof filtroStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos (Pagos e Pendentes)</SelectItem>
+                  <SelectItem value="pago">Somente Pagos</SelectItem>
+                  <SelectItem value="pendente">Somente Pendentes</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
